@@ -1,26 +1,67 @@
-import { Injectable } from '@nestjs/common';
+import { ConflictException, Injectable, InternalServerErrorException, Logger, NotFoundException } from '@nestjs/common';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Product } from './entities/product.entity';
+import { DB_ERROR_CODES } from 'src/utils/constants';
 
 @Injectable()
 export class ProductsService {
-  create(createProductDto: CreateProductDto) {
-    return 'This action adds a new product';
+  private logger = new Logger('ProductsService');
+
+  constructor(
+    @InjectRepository(Product)
+    private readonly productRepository: Repository<Product>,
+
+  ) {}
+
+  async create(createProductDto: CreateProductDto) {
+    try {
+      return await this.productRepository.save(createProductDto);
+    } catch (error) {  
+      this.handleDbError(error);
+    }
   }
 
-  findAll() {
-    return `This action returns all products`;
+  async findAll() {
+    try {
+     return this.productRepository.find();
+    } catch (error) {
+      this.handleDbError(error);
+    }
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} product`;
+  async findOne(id: number) {
+       return await this.productRepository.findOneBy({id});
   }
 
-  update(id: number, updateProductDto: UpdateProductDto) {
-    return `This action updates a #${id} product`;
+  async update(id: number, updateData: UpdateProductDto) {
+      const item = await this.findOne(id);
+      if (!item) {
+        throw new NotFoundException('Product not found');
+      }
+      Object.assign(item, {...updateData, updateAt: new Date()});
+    
+      return await this.productRepository.save(item);
+   
+  }
+  
+
+  async remove(id: number) {
+    const { affected } = await this.productRepository.delete(id);
+    if (affected === 0) {
+      throw new NotFoundException('Product not found');
+    }
+    return 'Product deleted successfully';
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} product`;
+
+  private handleDbError(error: any): never {
+    if (error.code === DB_ERROR_CODES.UNIQUE_CONSTRAINT) {
+      throw new ConflictException('Email already exists');
+    }
+    this.logger.error(error);
+    throw new InternalServerErrorException('please check the logs');
   }
 }
