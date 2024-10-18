@@ -50,12 +50,12 @@ Este repositorio es un punto de inicio para proyectos utilizando el framework [N
 
 ## Instalación
 
-```bash
+```
 $ npm install
 ```
 ## Iniciar app  
 
-```bash
+```
 
 # Modo desarrollo
 $ npm run start
